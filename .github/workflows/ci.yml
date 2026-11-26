@@ -1,0 +1,116 @@
+name: Manualist CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: backend-${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        check: [lint, typecheck, test, build]
+    defaults:
+      run:
+        working-directory: Server
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: manualist
+          POSTGRES_PASSWORD: manualist
+          POSTGRES_DB: manualist
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U manualist"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - if: matrix.check == 'lint'
+        run: uv run ruff check . && uv run ruff format --check .
+      - if: matrix.check == 'typecheck'
+        run: uv run mypy src tests
+      - if: matrix.check == 'test'
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://manualist:manualist@127.0.0.1:5432/manualist
+          TEST_REDIS_URL: redis://127.0.0.1:6379/0
+        run: uv run pytest --cov=src.services --cov-fail-under=80
+      - if: matrix.check == 'build'
+        run: |
+          uv build
+          uv run python -m src.api.export_openapi
+          git diff --exit-code -- openapi.json
+          REDIS_URL=redis://127.0.0.1:6379/0 uv run --locked --no-dev python -c 'from src.workers.celery_app import app; app.connection_for_read().transport'
+
+  frontend:
+    name: frontend-${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        check: [lint, typecheck, test, build]
+    defaults:
+      run:
+        working-directory: UI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: UI/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: UI/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - if: matrix.check == 'lint'
+        run: pnpm lint && pnpm exec prettier --check .
+      - if: matrix.check == 'typecheck'
+        run: pnpm typecheck
+      - if: matrix.check == 'test'
+        run: pnpm test
+      - if: matrix.check == 'build'
+        run: |
+          pnpm gen:api
+          git diff --exit-code -- src/api/schema.d.ts
+          pnpm build
+
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: UI/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - working-directory: Server
+        run: |
+          uv sync --locked
+          uv export --locked --no-emit-project --no-hashes --format requirements.txt -o /tmp/manualist-requirements.txt
+          uv run pip-audit --no-deps --disable-pip -r /tmp/manualist-requirements.txt
+      - working-directory: UI
+        run: pnpm audit --audit-level high

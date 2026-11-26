@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Manualist local configuration and runtime data
+.env.*
+!.env.example
+.venv-*/
+/data/
+/Server/data/
+
+# Frontend dependencies and generated reports
+node_modules/
+.pnpm-store/
+coverage/
+*.tsbuildinfo

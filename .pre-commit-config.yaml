@@ -1,0 +1,13 @@
+repos:
+  - repo: local
+    hooks:
+      - id: manualist-lint
+        name: Manualist lint, type checks, and formatting
+        entry: make lint
+        language: system
+        pass_filenames: false
+      - id: gitleaks
+        name: Scan staged files for secrets
+        entry: gitleaks git --pre-commit --staged --redact
+        language: system
+        pass_filenames: false

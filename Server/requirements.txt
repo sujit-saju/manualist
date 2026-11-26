@@ -1,0 +1,11 @@
+# Install the local server and its runtime dependencies from pyproject.toml.
+-e .
+
+# Development dependencies. Use uv.lock for reproducible milestone checks.
+mypy
+pip-audit
+pytest
+pytest-asyncio
+pytest-cov
+ruff
+structlog
