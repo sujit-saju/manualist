@@ -3,11 +3,15 @@ name = "manualist"
 version = "0.1.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "alembic>=1.20.1",
+    "argon2-cffi>=25.1.0",
     "asyncpg",
     "celery[redis]",
+    "email-validator>=2.4.0",
     "fastapi",
     "httpx",
     "pydantic-settings",
+    "pyjwt>=2.15.1",
     "redis",
     "sqlalchemy[asyncio]>=2,<3",
     "structlog",

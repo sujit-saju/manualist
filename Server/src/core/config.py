@@ -2,7 +2,14 @@
 
 from typing import Annotated, Literal
 
-from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn, field_validator
+from pydantic import (
+    AnyHttpUrl,
+    Field,
+    PostgresDsn,
+    RedisDsn,
+    SecretStr,
+    field_validator,
+)
 from pydantic_settings import BaseSettings, NoDecode
 
 
@@ -18,6 +25,9 @@ class Settings(BaseSettings):
     llm_model: str | None = None
     query_rewrite_model: str | None = None
     readiness_timeout_seconds: float = Field(default=3, gt=0)
+    secret_key: SecretStr | None = Field(default=None, min_length=32)
+    access_token_ttl_minutes: int = Field(default=15, gt=0)
+    refresh_token_ttl_days: int = Field(default=14, gt=0)
 
     @field_validator("cors_allowed_origins", mode="before")
     @classmethod

@@ -5,6 +5,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY src ./src
+COPY alembic.ini ./
+COPY alembic ./alembic
 RUN uv sync --locked --no-dev
 ENV PATH="/app/.venv/bin:$PATH"
 RUN useradd --system --create-home manualist
